@@ -1,0 +1,7 @@
+ZastavkyAll.csv - Zoznam zastávok
+matrixKm.txt - matica vzdialeností medzi zastávkami (zastávky sú v matici v rovnakom poradí ako v súbore ZastavkyAll.csv)
+matrixTime.txt - matica časových vzdialeností medzi zastávkami (zastávky sú v matici v rovnakom poradí ako v súbore ZastavkyAll.csv)
+
+chargers_Dataset_3.csv - zoznam nabíjačiek
+ChEvents_Dataset_3.csv - zoznam nabíjacích intervalov (udalostí) na každej nabíjačke
+spoje_id_Dataset_3.csv - zoznam spojov
