@@ -16,6 +16,10 @@ public class MemeticAlgorithm {
 
     private List<Trip> trips;
 
+    private Solution bestSolution;
+    private double bestTurnuses = Integer.MAX_VALUE;
+
+
     public MemeticAlgorithm(int popSize, int generations, double mutationRate, List<Trip> trips) {
         this.populationSize = popSize;
         this.generations = generations;
@@ -33,24 +37,28 @@ public class MemeticAlgorithm {
             for (int i = 0; i < populationSize; i++) {
                 Solution parent1 = selectParent();
                 Solution parent2 = selectParent();
-                Solution child = crossover(parent1, parent2);
 
+                Solution child = crossover(parent1, parent2);
                 mutate(child);
                 localImprove(child);
+                
                 newPopulation.add(child);
             }
 
+            mutationRate = mutationRate * (1.0 - (double) gen / generations);
             population = newPopulation;
+
             System.out.println("Generation " + gen + ": Turnuses = " + getBestSolution().getNumberOfTurnuses());
         }
 
-        System.out.println("Final best solution: " + getBestSolution());
+        System.out.println("Final best solution: " + bestSolution);
     }
 
     private void initializePopulation() {
         for (int i = 0; i < populationSize; i++) {
-            // Solution solution = generateRandomSolution();
+            //Solution solution = generateRandomSolution();
             Solution solution = generateGreedySolution();
+            updateBestSolution(solution);
             population.add(solution);
         }
     }
@@ -137,15 +145,22 @@ public class MemeticAlgorithm {
     
 
     private Solution selectParent() {
-        // Tournament selection (zatiaľ náhodne)
-        return population.get(random.nextInt(population.size()));
+        List<Solution> tournament = new ArrayList<>();
+        for (int i = 0; i < 3; i++) {
+            Solution s = population.get(random.nextInt(population.size()));
+            tournament.add(s);
+        }
+
+        return tournament.stream()
+                .min(Comparator
+                        .comparingInt(Solution::getNumberOfTurnuses)
+                        .thenComparingDouble(Solution::getFitness))
+                .orElse(null);
     }
 
     private Solution crossover(Solution parent1, Solution parent2) {
         Solution child = new Solution();
         Set<Integer> usedTripIds = new HashSet<>();
-    
-        Random rand = new Random();
     
         // Copy half of the turnuses from parent1
         List<Turnus> p1Turnuses = new ArrayList<>(parent1.getTurnuses());
@@ -193,7 +208,19 @@ public class MemeticAlgorithm {
                 child.addTurnus(newTurnus);
             }
         }
+
+        // Kontrola: pridaj chýbajúce tripy
+        Set<Integer> used = child.getUsedTripIds();
+        for (Trip trip : trips) {
+            if (!used.contains(trip.getId())) {
+                Turnus fallbackTurnus = new Turnus();
+                fallbackTurnus.addElement(trip);
+                child.addTurnus(fallbackTurnus);
+            }
+        }
+
     
+        updateBestSolution(child);
         return child;
     }
     
@@ -202,13 +229,12 @@ public class MemeticAlgorithm {
     private void mutate(Solution solution) {
         if (random.nextDouble() > mutationRate) return;
 
-        Random rand = new Random();
         if (solution.getTurnuses().size() < 2) return;
     
         Set<Integer> usedTripIds = solution.getUsedTripIds();
     
         // Vyber náhodný turnus (zdroj)
-        Turnus fromTurnus = solution.getTurnuses().get(rand.nextInt(solution.getTurnuses().size()));
+        Turnus fromTurnus = solution.getTurnuses().get(random.nextInt(solution.getTurnuses().size()));
         List<TurnusElement> fromElements = fromTurnus.getElements();
     
         List<Trip> fromTrips = new ArrayList<>();
@@ -220,12 +246,12 @@ public class MemeticAlgorithm {
     
         if (fromTrips.isEmpty()) return;
     
-        Trip selectedTrip = fromTrips.get(rand.nextInt(fromTrips.size()));
+        Trip selectedTrip = fromTrips.get(random.nextInt(fromTrips.size()));
         fromElements.removeIf(e -> (e instanceof Trip t) && t.getId() == selectedTrip.getId());
         usedTripIds.remove(selectedTrip.getId());
     
         // Vyber náhodný cieľový turnus
-        Turnus toTurnus = solution.getTurnuses().get(rand.nextInt(solution.getTurnuses().size()));
+        Turnus toTurnus = solution.getTurnuses().get(random.nextInt(solution.getTurnuses().size()));
         if (toTurnus == fromTurnus) return;
     
         if (!usedTripIds.contains(selectedTrip.getId())) {
@@ -245,6 +271,8 @@ public class MemeticAlgorithm {
             fromTurnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
             usedTripIds.add(selectedTrip.getId());
         }
+
+        updateBestSolution(solution);
     }
     
     private void localImprove(Solution solution) {
@@ -259,8 +287,6 @@ public class MemeticAlgorithm {
                     tripsToMove.add(trip);
                 }
             }
-    
-            boolean allMoved = true;
     
             for (Trip trip : tripsToMove) {
                 boolean moved = false;
@@ -286,20 +312,58 @@ public class MemeticAlgorithm {
                     newTurnus.addElement(trip);
                     improved.add(newTurnus);
                     usedTripIds.add(trip.getId());
-                    allMoved = false;
                 }
             }
         }
     
+        // 🧠 Pokus o zlúčenie turnusov
+        boolean merged = true;
+        while (merged) {
+            merged = false;
+            outer:
+            for (int i = 0; i < improved.size(); i++) {
+                for (int j = i + 1; j < improved.size(); j++) {
+                    Turnus t1 = improved.get(i);
+                    Turnus t2 = improved.get(j);
+    
+                    Turnus mergedTurnus = new Turnus();
+                    mergedTurnus.getElements().addAll(t1.getElements());
+                    mergedTurnus.getElements().addAll(t2.getElements());
+                    mergedTurnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+    
+                    if (mergedTurnus.isFeasible()) {
+                        improved.set(i, mergedTurnus);
+                        improved.remove(j);
+                        merged = true;
+                        break outer;
+                    }
+                }
+            }
+        }
+    
+        // Odstráň prázdne turnusy (ak by sa nejaké omylom vytvorili)
+        improved.removeIf(t -> t.getElements().isEmpty());
+    
         solution.getTurnuses().clear();
         solution.getTurnuses().addAll(improved);
+
+        updateBestSolution(solution);
     }
     
-
+    public void updateBestSolution(Solution solution) {
+        double fitness = solution.getFitness();
+        int turnuses = solution.getNumberOfTurnuses();
+    
+        if (bestSolution == null ||
+            turnuses < bestTurnuses ||
+            (turnuses == bestTurnuses && fitness > bestSolution.getFitness())) {
+            
+            bestTurnuses = turnuses;
+            bestSolution = new Solution(solution); // clone
+        }
+    }    
 
     public Solution getBestSolution() {
-        return population.stream()
-                .min(Comparator.comparingDouble(Solution::getFitness))
-                .orElse(null);
-    }
+        return bestSolution;
+    }    
 }
