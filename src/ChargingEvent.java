@@ -40,7 +40,7 @@ public class ChargingEvent implements TurnusElement {
     }
 
     public double getChargedEnergy() {
-        return (double) getDuration() * charger.getChargingSpeed() / 60.0;
+        return (double) getDuration() * charger.getChargingSpeed();
     }
 
     @Override

@@ -9,7 +9,7 @@ public class StaticData {
     public static double consumptionPerKm = 1.0;
 
     public static double getDeadheadEnergy(int from, int to) {
-        return matrixKm[from][to] * consumptionPerKm;
+        return getTravelDistance(from, to) * consumptionPerKm;
     }
 
     public static int getTravelTime(int from, int to) {

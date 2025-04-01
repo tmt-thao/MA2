@@ -56,7 +56,7 @@ public class MemeticAlgorithm {
 
     private void initializePopulation() {
         for (int i = 0; i < populationSize; i++) {
-            //Solution solution = generateRandomSolution();
+            // Solution solution = generateRandomSolution();
             Solution solution = generateGreedySolution();
             updateBestSolution(solution);
             population.add(solution);
@@ -111,10 +111,11 @@ public class MemeticAlgorithm {
                 List<TurnusElement> elements = turnus.getElements();
     
                 if (!elements.isEmpty()) {
-                    TurnusElement last = elements.get(elements.size() - 1);
+                    // ešte sa nerieši charging event
+                    Trip last = (Trip)elements.get(elements.size() - 1);
     
                     // ak časovo stíha a deadhead nie je príliš ďaleko (tu to ešte nezohľadňujeme úplne presne)
-                    if (last.getEndTime() + 5 <= trip.getStartTime()) {
+                    if (last.getEndTime() + StaticData.getTravelTime(last.getEndStop(), trip.getStartStop()) <= trip.getStartTime()) {
                         turnus.addElement(trip);
                         assigned = true;
                         break;
@@ -136,7 +137,7 @@ public class MemeticAlgorithm {
     
         // Zoradiť každé turnusové elementy podľa času (istota)
         for (Turnus t : turnuses) {
-            t.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+            //t.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
             solution.addTurnus(t);
         }
     
@@ -153,8 +154,9 @@ public class MemeticAlgorithm {
 
         return tournament.stream()
                 .min(Comparator
-                        .comparingInt(Solution::getNumberOfTurnuses)
-                        .thenComparingDouble(Solution::getFitness))
+                        // .comparingInt(Solution::getNumberOfTurnuses)
+                        // .thenComparingDouble(Solution::getFitness))
+                        .comparingDouble(Solution::getFitness))
                 .orElse(null);
     }
 
@@ -210,14 +212,14 @@ public class MemeticAlgorithm {
         }
 
         // Kontrola: pridaj chýbajúce tripy
-        Set<Integer> used = child.getUsedTripIds();
-        for (Trip trip : trips) {
-            if (!used.contains(trip.getId())) {
-                Turnus fallbackTurnus = new Turnus();
-                fallbackTurnus.addElement(trip);
-                child.addTurnus(fallbackTurnus);
-            }
-        }
+        // Set<Integer> used = child.getUsedTripIds();
+        // for (Trip trip : trips) {
+        //     if (!used.contains(trip.getId())) {
+        //         Turnus fallbackTurnus = new Turnus();
+        //         fallbackTurnus.addElement(trip);
+        //         child.addTurnus(fallbackTurnus);
+        //     }
+        // }
 
     
         updateBestSolution(child);
@@ -247,7 +249,8 @@ public class MemeticAlgorithm {
         if (fromTrips.isEmpty()) return;
     
         Trip selectedTrip = fromTrips.get(random.nextInt(fromTrips.size()));
-        fromElements.removeIf(e -> (e instanceof Trip t) && t.getId() == selectedTrip.getId());
+        fromElements.remove(selectedTrip.getId());
+        // fromElements.removeIf(e -> (e instanceof Trip t) && t.getId() == selectedTrip.getId());
         usedTripIds.remove(selectedTrip.getId());
     
         // Vyber náhodný cieľový turnus
@@ -266,7 +269,7 @@ public class MemeticAlgorithm {
             } else {
                 usedTripIds.add(selectedTrip.getId());
             }
-        } else {
+        } else {    // nemalo by sa stat
             fromTurnus.addElement(selectedTrip);
             fromTurnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
             usedTripIds.add(selectedTrip.getId());
@@ -316,7 +319,7 @@ public class MemeticAlgorithm {
             }
         }
     
-        // 🧠 Pokus o zlúčenie turnusov
+        // Pokus o zlúčenie turnusov
         boolean merged = true;
         while (merged) {
             merged = false;

@@ -27,29 +27,28 @@ public class DataLoader {
     public static void loadTrips(String filePath) throws IOException {
         StaticData.trips = new ArrayList<>();
         
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
-            String line;
-            boolean first = true;
+        BufferedReader br = new BufferedReader(new FileReader(filePath));
+        String line;
+        boolean first = true;
 
-            while ((line = br.readLine()) != null) {
-                if (first) { first = false; continue; }
+        while ((line = br.readLine()) != null) {
+            if (first) { first = false; continue; }
 
-                String[] parts = line.split(";");
-                int id = Integer.parseInt(parts[0]);
-                int startStop = StaticData.stopIdToIndex.get(Integer.parseInt(parts[4]));
-                int endStop = StaticData.stopIdToIndex.get(Integer.parseInt(parts[5]));
-                int startTime = Integer.parseInt(parts[6]);
-                int endTime = Integer.parseInt(parts[7]);
-                double energy = Double.parseDouble(parts[9]);
+            String[] parts = line.split(";");
+            int id = Integer.parseInt(parts[0]);
+            int startStop = StaticData.stopIdToIndex.get(Integer.parseInt(parts[4]));
+            int endStop = StaticData.stopIdToIndex.get(Integer.parseInt(parts[5]));
+            int startTime = Integer.parseInt(parts[6]);
+            int endTime = Integer.parseInt(parts[7]);
+            double energy = Double.parseDouble(parts[9]);
 
-                StaticData.trips.add(new Trip(id, startStop, endStop, startTime, endTime, energy));
-            }
-        } catch (IOException e) {
-            System.err.println("Error reading trips: " + e.getMessage());
+            StaticData.trips.add(new Trip(id, startStop, endStop, startTime, endTime, energy));
         }
 
+        br.close();
         StaticData.trips.remove(0);
         StaticData.trips.remove(StaticData.trips.size() - 1);
+
     }
 
     public static void loadMatrixKm(String filePath, int size) throws IOException {
@@ -78,7 +77,7 @@ public class DataLoader {
         while ((line = br.readLine()) != null && row < size) {
             String[] parts = line.split(";");
             for (int col = 0; col < size; col++) {
-                StaticData.matrixKm[row][col] = Double.parseDouble(parts[col]);
+                StaticData.matrixKm[row][col] = Integer.parseInt(parts[col]);
             }
             row++;
         }

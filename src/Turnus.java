@@ -80,10 +80,8 @@ public class Turnus {
 
         for (TurnusElement e : elements) {
             if (e instanceof Trip curr) {
-                if (prev != null) {
-                    if (prev.getEndStop() != curr.getStartStop()) {
+                if (prev != null && prev.getEndStop() != curr.getStartStop()) {
                         count++;
-                    }
                 }
 
                 prev = curr;
@@ -99,10 +97,8 @@ public class Turnus {
 
         for (TurnusElement e : elements) {
             if (e instanceof Trip curr) {
-                if (prev != null) {
-                    if (prev.getEndStop() != curr.getStartStop()) {
+                if (prev != null && prev.getEndStop() != curr.getStartStop()) {
                         total += StaticData.getTravelDistance(prev.getEndStop(), curr.getStartStop());
-                    }
                 }
 
                 prev = curr;
