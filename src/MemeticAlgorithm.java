@@ -249,8 +249,7 @@ public class MemeticAlgorithm {
         if (fromTrips.isEmpty()) return;
     
         Trip selectedTrip = fromTrips.get(random.nextInt(fromTrips.size()));
-        fromElements.remove(selectedTrip.getId());
-        // fromElements.removeIf(e -> (e instanceof Trip t) && t.getId() == selectedTrip.getId());
+        fromElements.removeIf(e -> (e instanceof Trip t) && t.getId() == selectedTrip.getId());
         usedTripIds.remove(selectedTrip.getId());
     
         // Vyber náhodný cieľový turnus

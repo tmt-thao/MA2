@@ -6,7 +6,7 @@ public class StaticData {
     public static List<Trip> trips;
     public static double[][] matrixKm;
     public static int[][] matrixTime;
-    public static double consumptionPerKm = 1.0;
+    public static double consumptionPerKm = 1.5;
 
     public static double getDeadheadEnergy(int from, int to) {
         return getTravelDistance(from, to) * consumptionPerKm;

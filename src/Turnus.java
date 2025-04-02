@@ -3,7 +3,7 @@ import java.util.List;
 
 public class Turnus {
     private List<TurnusElement> elements = new ArrayList<>();
-    private static final double BATTERY_CAPACITY = 140.0; // kWh
+    private static final double BATTERY_CAPACITY = 125.0; // kWh
     private static final double MIN_BATTERY_LEVEL = 0.0; // kWh
 
     public Turnus() {
