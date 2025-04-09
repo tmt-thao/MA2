@@ -4,6 +4,8 @@ import java.util.List;
 public class StaticData {
     public static HashMap<Integer, Integer> stopIdToIndex;
     public static List<Trip> trips;
+    public static List<Charger> chargers;
+    public static List<ChargingEvent> chargingEvents;
     public static double[][] matrixKm;
     public static int[][] matrixTime;
     public static double consumptionPerKm = 1.5;

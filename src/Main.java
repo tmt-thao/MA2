@@ -3,8 +3,11 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) throws IOException {
+        String version = "A_4";
         DataLoader.loadStopIdToIndex("data/ZastavkyAll.csv");
-        DataLoader.loadTrips("data/spoje_id_T4_3.csv");
+        DataLoader.loadChargers("data/chargers_" + version + ".csv");
+        DataLoader.loadChargingEvents("data/ChEvents_" + version + ".csv");
+        DataLoader.loadTrips("data/spoje_id_" + version + ".csv");
         List<Trip> trips = StaticData.trips;
 
         DataLoader.loadMatrixKm("data/matrixKm.txt", StaticData.stopIdToIndex.size());

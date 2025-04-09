@@ -1,9 +1,9 @@
 public class Charger {
     private int index;
     private int location;
-    private int chargingSpeed;
+    private double chargingSpeed;
 
-    public Charger(int index, int location, int chargingSpeed) {
+    public Charger(int index, int location, double chargingSpeed) {
         this.index = index;
         this.location = location;
         this.chargingSpeed = chargingSpeed;
@@ -17,7 +17,7 @@ public class Charger {
         return location;
     }
 
-    public int getChargingSpeed() {
+    public double getChargingSpeed() {
         return chargingSpeed;
     }
 

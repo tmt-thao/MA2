@@ -5,19 +5,21 @@ import java.util.Set;
 
 public class Solution {
     private List<Turnus> turnuses = new ArrayList<>();
+    private Set<Integer> usedChargingEventIds = new HashSet<>();
 
     public Solution() {
         // Default constructor
     }
 
     public Solution(Solution other) {
-        this.turnuses = new ArrayList<>();
+        this.usedChargingEventIds = new HashSet<>(other.usedChargingEventIds);
 
+        this.turnuses = new ArrayList<>();
         for (Turnus t : other.getTurnuses()) {
             Turnus copied = new Turnus(t);
             this.turnuses.add(copied);
         }
-    }    
+    }
 
     public void addTurnus(Turnus turnus) {
         turnuses.add(turnus);
@@ -55,17 +57,20 @@ public class Solution {
     }
 
     public Set<Integer> getUsedTripIds() {
-    Set<Integer> ids = new HashSet<>();
-    for (Turnus t : turnuses) {
-        for (TurnusElement e : t.getElements()) {
-            if (e instanceof Trip trip) {
-                ids.add(trip.getId());
+        Set<Integer> ids = new HashSet<>();
+        for (Turnus t : turnuses) {
+            for (TurnusElement e : t.getElements()) {
+                if (e instanceof Trip trip) {
+                    ids.add(trip.getId());
+                }
             }
         }
+        return ids;
     }
-    return ids;
-}
 
+    public Set<Integer> getUsedChargingEventIds() {
+        return usedChargingEventIds;
+    }    
 
     @Override
     public String toString() {

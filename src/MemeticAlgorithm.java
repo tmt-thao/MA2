@@ -19,7 +19,6 @@ public class MemeticAlgorithm {
     private Solution bestSolution;
     private double bestTurnuses = Integer.MAX_VALUE;
 
-
     public MemeticAlgorithm(int popSize, int generations, double mutationRate, List<Trip> trips) {
         this.populationSize = popSize;
         this.generations = generations;
@@ -39,9 +38,14 @@ public class MemeticAlgorithm {
                 Solution parent2 = selectParent();
 
                 Solution child = crossover(parent1, parent2);
+                simulation(child);
+
                 mutate(child);
+                simulation(child);
+
                 localImprove(child);
-                
+                simulation(child);
+
                 newPopulation.add(child);
             }
 
@@ -54,10 +58,57 @@ public class MemeticAlgorithm {
         System.out.println("Final best solution: " + bestSolution);
     }
 
+    // private void initializePopulation() {
+    // for (int i = 0; i < populationSize; i++) {
+    // // Solution solution = generateRandomSolution();
+    // Solution solution = generateGreedySolution();
+    // updateBestSolution(solution);
+    // population.add(solution);
+    // }
+    // }
+
     private void initializePopulation() {
-        for (int i = 0; i < populationSize; i++) {
-            // Solution solution = generateRandomSolution();
-            Solution solution = generateGreedySolution();
+        while (population.size() < populationSize) {
+            System.out.println("-> Generating solution #" + (population.size() + 1));
+            Solution solution = generateRandomSolution();
+            boolean fixable = true;
+
+            for (Turnus t : solution.getTurnuses()) {
+                if (!t.isFeasible()) {
+                    System.out.println("   - Checking turnus " + t + " for feasibility...");
+                    boolean fixed = ChargingHelper.tryFixTurnusAtFailure(t, solution.getUsedChargingEventIds());
+                    if (!fixed) {
+                        System.out.println("     ✖ Could not fix turnus " + t);
+                        fixable = false;
+                        break;
+                    }
+                    System.out.println("     ✔ Turnus " + t + " fixed");
+                }
+            }
+
+            if (fixable && solution.isFeasible()) {
+                updateBestSolution(solution);
+                population.add(solution);
+                System.out.println(population.size() + " / " + populationSize + " generated.");
+            }
+
+        }
+    }
+
+    private void simulation(Solution solution) {
+        boolean fixable = true;
+
+        for (Turnus t : solution.getTurnuses()) {
+            if (!t.isFeasible()) {
+                boolean fixed = ChargingHelper.tryFixTurnusAtFailure(t, solution.getUsedChargingEventIds());
+                if (!fixed) {
+                    fixable = false;
+                    break;
+                }
+            }
+        }
+
+        if (fixable && solution.isFeasible()) {
             updateBestSolution(solution);
             population.add(solution);
         }
@@ -66,18 +117,18 @@ public class MemeticAlgorithm {
     private Solution generateRandomSolution() {
         List<Trip> shuffledTrips = new ArrayList<>(trips);
         Collections.shuffle(shuffledTrips); // začni náhodne
-    
+
         Solution solution = new Solution();
-    
+
         for (Trip trip : shuffledTrips) {
             boolean assigned = false;
-    
+
             // skúsiť priradiť do existujúceho turnusu
             for (Turnus turnus : solution.getTurnuses()) {
                 Turnus test = new Turnus(turnus);
                 test.addElement(trip);
                 test.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
-    
+
                 if (test.isFeasible()) {
                     turnus.addElement(trip);
                     turnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
@@ -85,37 +136,39 @@ public class MemeticAlgorithm {
                     break;
                 }
             }
-    
+
             if (!assigned) {
                 Turnus newTurnus = new Turnus();
                 newTurnus.addElement(trip);
                 solution.addTurnus(newTurnus);
             }
         }
-    
+
         return solution;
-    }    
+    }
 
     private Solution generateGreedySolution() {
         List<Trip> sortedTrips = new ArrayList<>(trips);
         sortedTrips.sort(Comparator.comparingInt(Trip::getStartTime));
-    
+
         Solution solution = new Solution();
         List<Turnus> turnuses = new ArrayList<>();
-    
+
         for (Trip trip : sortedTrips) {
             boolean assigned = false;
-    
+
             for (Turnus turnus : turnuses) {
                 // posledný prvok v turnuse (ak existuje)
                 List<TurnusElement> elements = turnus.getElements();
-    
+
                 if (!elements.isEmpty()) {
                     // ešte sa nerieši charging event
-                    Trip last = (Trip)elements.get(elements.size() - 1);
-    
-                    // ak časovo stíha a deadhead nie je príliš ďaleko (tu to ešte nezohľadňujeme úplne presne)
-                    if (last.getEndTime() + StaticData.getTravelTime(last.getEndStop(), trip.getStartStop()) <= trip.getStartTime()) {
+                    Trip last = (Trip) elements.get(elements.size() - 1);
+
+                    // ak časovo stíha a deadhead nie je príliš ďaleko (tu to ešte nezohľadňujeme
+                    // úplne presne)
+                    if (last.getEndTime() + StaticData.getTravelTime(last.getEndStop(), trip.getStartStop()) <= trip
+                            .getStartTime()) {
                         turnus.addElement(trip);
                         assigned = true;
                         break;
@@ -127,23 +180,22 @@ public class MemeticAlgorithm {
                     break;
                 }
             }
-    
+
             if (!assigned) {
                 Turnus newTurnus = new Turnus();
                 newTurnus.addElement(trip);
                 turnuses.add(newTurnus);
             }
         }
-    
+
         // Zoradiť každé turnusové elementy podľa času (istota)
         for (Turnus t : turnuses) {
-            //t.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+            // t.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
             solution.addTurnus(t);
         }
-    
+
         return solution;
     }
-    
 
     private Solution selectParent() {
         List<Solution> tournament = new ArrayList<>();
@@ -160,212 +212,362 @@ public class MemeticAlgorithm {
                 .orElse(null);
     }
 
+    // private Solution crossover(Solution parent1, Solution parent2) {
+    // Solution child = new Solution();
+    // Set<Integer> usedTripIds = new HashSet<>();
+
+    // // Copy half of the turnuses from parent1
+    // List<Turnus> p1Turnuses = new ArrayList<>(parent1.getTurnuses());
+    // Collections.shuffle(p1Turnuses);
+
+    // int half = p1Turnuses.size() / 2;
+    // for (int i = 0; i < half; i++) {
+    // Turnus t = new Turnus(p1Turnuses.get(i));
+    // child.addTurnus(t);
+    // for (TurnusElement e : t.getElements()) {
+    // if (e instanceof Trip trip) {
+    // usedTripIds.add(trip.getId());
+    // }
+    // }
+    // }
+
+    // // Fill remaining trips from parent2
+    // List<Trip> remainingTrips = new ArrayList<>();
+    // for (Turnus t : parent2.getTurnuses()) {
+    // for (TurnusElement e : t.getElements()) {
+    // if (e instanceof Trip trip && !usedTripIds.contains(trip.getId())) {
+    // remainingTrips.add(new Trip(trip));
+    // usedTripIds.add(trip.getId());
+    // }
+    // }
+    // }
+
+    // // Greedy assignment of remaining trips
+    // for (Trip trip : remainingTrips) {
+    // boolean added = false;
+    // for (Turnus t : child.getTurnuses()) {
+    // Turnus test = new Turnus(t);
+    // test.addElement(trip);
+    // test.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+    // if (test.isFeasible()) {
+    // t.addElement(trip);
+    // t.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+    // added = true;
+    // break;
+    // }
+    // }
+    // if (!added) {
+    // Turnus newTurnus = new Turnus();
+    // newTurnus.addElement(trip);
+    // child.addTurnus(newTurnus);
+    // }
+    // }
+
+    // // Kontrola: pridaj chýbajúce tripy
+    // // Set<Integer> used = child.getUsedTripIds();
+    // // for (Trip trip : trips) {
+    // // if (!used.contains(trip.getId())) {
+    // // Turnus fallbackTurnus = new Turnus();
+    // // fallbackTurnus.addElement(trip);
+    // // child.addTurnus(fallbackTurnus);
+    // // }
+    // // }
+
+    // updateBestSolution(child);
+    // return child;
+    // }
+
     private Solution crossover(Solution parent1, Solution parent2) {
         Solution child = new Solution();
         Set<Integer> usedTripIds = new HashSet<>();
-    
-        // Copy half of the turnuses from parent1
-        List<Turnus> p1Turnuses = new ArrayList<>(parent1.getTurnuses());
-        Collections.shuffle(p1Turnuses);
-    
-        int half = p1Turnuses.size() / 2;
-        for (int i = 0; i < half; i++) {
-            Turnus t = new Turnus(p1Turnuses.get(i));
-            child.addTurnus(t);
+
+        // 1. Zober najlepšie turnusy z oboch rodičov (podľa deadhead distance)
+        List<Turnus> allTurnuses = new ArrayList<>();
+        allTurnuses.addAll(parent1.getTurnuses());
+        allTurnuses.addAll(parent2.getTurnuses());
+
+        allTurnuses.sort(Comparator.comparingDouble(Turnus::getDeadheadDistance));
+
+        for (Turnus t : allTurnuses) {
+            boolean valid = true;
+            Turnus copy = new Turnus();
             for (TurnusElement e : t.getElements()) {
                 if (e instanceof Trip trip) {
+                    if (usedTripIds.contains(trip.getId())) {
+                        valid = false;
+                        break;
+                    }
                     usedTripIds.add(trip.getId());
+                    copy.addElement(new Trip(trip));
+                } else {
+                    copy.addElement(e);
                 }
             }
+            if (valid)
+                child.addTurnus(copy);
         }
-    
-        // Fill remaining trips from parent2
-        List<Trip> remainingTrips = new ArrayList<>();
-        for (Turnus t : parent2.getTurnuses()) {
-            for (TurnusElement e : t.getElements()) {
-                if (e instanceof Trip trip && !usedTripIds.contains(trip.getId())) {
-                    remainingTrips.add(new Trip(trip));
-                    usedTripIds.add(trip.getId());
+
+        // 2. Priraď chýbajúce tripy
+        for (Trip trip : trips) {
+            if (!usedTripIds.contains(trip.getId())) {
+                boolean placed = false;
+                for (Turnus t : child.getTurnuses()) {
+                    Turnus test = new Turnus(t);
+                    test.addElement(trip);
+                    test.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+                    if (test.isFeasible()) {
+                        t.addElement(trip);
+                        t.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+                        placed = true;
+                        break;
+                    }
                 }
-            }
-        }
-    
-        // Greedy assignment of remaining trips
-        for (Trip trip : remainingTrips) {
-            boolean added = false;
-            for (Turnus t : child.getTurnuses()) {
-                Turnus test = new Turnus(t);
-                test.addElement(trip);
-                test.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
-                if (test.isFeasible()) {
-                    t.addElement(trip);
-                    t.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
-                    added = true;
-                    break;
+                if (!placed) {
+                    Turnus newTurnus = new Turnus();
+                    newTurnus.addElement(trip);
+                    child.addTurnus(newTurnus);
                 }
-            }
-            if (!added) {
-                Turnus newTurnus = new Turnus();
-                newTurnus.addElement(trip);
-                child.addTurnus(newTurnus);
             }
         }
 
-        // Kontrola: pridaj chýbajúce tripy
-        // Set<Integer> used = child.getUsedTripIds();
-        // for (Trip trip : trips) {
-        //     if (!used.contains(trip.getId())) {
-        //         Turnus fallbackTurnus = new Turnus();
-        //         fallbackTurnus.addElement(trip);
-        //         child.addTurnus(fallbackTurnus);
-        //     }
-        // }
-
-    
         updateBestSolution(child);
         return child;
     }
-    
-
 
     private void mutate(Solution solution) {
-        if (random.nextDouble() > mutationRate) return;
+        if (random.nextDouble() > mutationRate)
+            return;
+        if (solution.getTurnuses().size() < 2)
+            return;
 
-        if (solution.getTurnuses().size() < 2) return;
-    
-        Set<Integer> usedTripIds = solution.getUsedTripIds();
-    
-        // Vyber náhodný turnus (zdroj)
-        Turnus fromTurnus = solution.getTurnuses().get(random.nextInt(solution.getTurnuses().size()));
-        List<TurnusElement> fromElements = fromTurnus.getElements();
-    
-        List<Trip> fromTrips = new ArrayList<>();
-        for (TurnusElement e : fromElements) {
-            if (e instanceof Trip trip) {
-                fromTrips.add(trip);
+        // Nájdeme najhorší turnus (napr. podľa deadhead vzdialenosti)
+        Turnus worst = solution.getTurnuses().stream()
+                .max(Comparator.comparingDouble(Turnus::getDeadheadDistance))
+                .orElse(null);
+
+        if (worst == null || worst.getElements().isEmpty())
+            return;
+
+        List<Trip> worstTrips = new ArrayList<>();
+        for (TurnusElement e : worst.getElements()) {
+            if (e instanceof Trip trip)
+                worstTrips.add(trip);
+        }
+
+        if (worstTrips.isEmpty())
+            return;
+
+        // Vyber náhodný trip z najhoršieho turnusu
+        Trip selected = worstTrips.get(random.nextInt(worstTrips.size()));
+
+        // Odstráň trip z pôvodného turnusu
+        worst.getElements().removeIf(e -> e instanceof Trip t && t.getId() == selected.getId());
+
+        // Skús ho priradiť do iného existujúceho turnusu
+        boolean inserted = false;
+        for (Turnus target : solution.getTurnuses()) {
+            if (target == worst)
+                continue;
+
+            Turnus test = new Turnus(target);
+            test.addElement(selected);
+            test.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+
+            if (test.isFeasible()) {
+                target.addElement(selected);
+                target.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+                inserted = true;
+                break;
             }
         }
-    
-        if (fromTrips.isEmpty()) return;
-    
-        Trip selectedTrip = fromTrips.get(random.nextInt(fromTrips.size()));
-        fromElements.removeIf(e -> (e instanceof Trip t) && t.getId() == selectedTrip.getId());
-        usedTripIds.remove(selectedTrip.getId());
-    
-        // Vyber náhodný cieľový turnus
-        Turnus toTurnus = solution.getTurnuses().get(random.nextInt(solution.getTurnuses().size()));
-        if (toTurnus == fromTurnus) return;
-    
-        if (!usedTripIds.contains(selectedTrip.getId())) {
-            toTurnus.addElement(selectedTrip);
-            toTurnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
-    
-            if (!fromTurnus.isFeasible() || !toTurnus.isFeasible()) {
-                toTurnus.getElements().removeIf(e -> (e instanceof Trip t) && t.getId() == selectedTrip.getId());
-                fromTurnus.addElement(selectedTrip);
-                fromTurnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
-                usedTripIds.add(selectedTrip.getId());
-            } else {
-                usedTripIds.add(selectedTrip.getId());
-            }
-        } else {    // nemalo by sa stat
-            fromTurnus.addElement(selectedTrip);
-            fromTurnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
-            usedTripIds.add(selectedTrip.getId());
+
+        // Ak sa nedal vložiť nikam, vytvor nový turnus
+        if (!inserted) {
+            Turnus newTurnus = new Turnus();
+            newTurnus.addElement(selected);
+            solution.addTurnus(newTurnus);
         }
 
         updateBestSolution(solution);
     }
-    
+
+    // private void mutate(Solution solution) {
+    // if (random.nextDouble() > mutationRate)
+    // return;
+
+    // if (solution.getTurnuses().size() < 2)
+    // return;
+
+    // Set<Integer> usedTripIds = solution.getUsedTripIds();
+
+    // // Vyber náhodný turnus (zdroj)
+    // Turnus fromTurnus =
+    // solution.getTurnuses().get(random.nextInt(solution.getTurnuses().size()));
+    // List<TurnusElement> fromElements = fromTurnus.getElements();
+
+    // List<Trip> fromTrips = new ArrayList<>();
+    // for (TurnusElement e : fromElements) {
+    // if (e instanceof Trip trip) {
+    // fromTrips.add(trip);
+    // }
+    // }
+
+    // if (fromTrips.isEmpty())
+    // return;
+
+    // Trip selectedTrip = fromTrips.get(random.nextInt(fromTrips.size()));
+    // fromElements.removeIf(e -> (e instanceof Trip t) && t.getId() ==
+    // selectedTrip.getId());
+    // usedTripIds.remove(selectedTrip.getId());
+
+    // // Vyber náhodný cieľový turnus
+    // Turnus toTurnus =
+    // solution.getTurnuses().get(random.nextInt(solution.getTurnuses().size()));
+    // if (toTurnus == fromTurnus)
+    // return;
+
+    // if (!usedTripIds.contains(selectedTrip.getId())) {
+    // toTurnus.addElement(selectedTrip);
+    // toTurnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+
+    // if (!fromTurnus.isFeasible() || !toTurnus.isFeasible()) {
+    // toTurnus.getElements().removeIf(e -> (e instanceof Trip t) && t.getId() ==
+    // selectedTrip.getId());
+    // fromTurnus.addElement(selectedTrip);
+    // fromTurnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+    // usedTripIds.add(selectedTrip.getId());
+    // } else {
+    // usedTripIds.add(selectedTrip.getId());
+    // }
+    // } else { // nemalo by sa stat
+    // fromTurnus.addElement(selectedTrip);
+    // fromTurnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+    // usedTripIds.add(selectedTrip.getId());
+    // }
+
+    // updateBestSolution(solution);
+    // }
+
     private void localImprove(Solution solution) {
-        List<Turnus> original = new ArrayList<>(solution.getTurnuses());
-        List<Turnus> improved = new ArrayList<>();
-        Set<Integer> usedTripIds = new HashSet<>();
-    
-        for (Turnus t : original) {
-            List<Trip> tripsToMove = new ArrayList<>();
-            for (TurnusElement e : t.getElements()) {
-                if (e instanceof Trip trip) {
-                    tripsToMove.add(trip);
-                }
-            }
-    
-            for (Trip trip : tripsToMove) {
-                boolean moved = false;
-    
-                for (Turnus target : improved) {
-                    if (!usedTripIds.contains(trip.getId())) {
-                        Turnus test = new Turnus(target);
-                        test.addElement(trip);
-                        test.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
-    
-                        if (test.isFeasible()) {
-                            target.addElement(trip);
-                            target.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
-                            usedTripIds.add(trip.getId());
-                            moved = true;
-                            break;
-                        }
-                    }
-                }
-    
-                if (!moved) {
-                    Turnus newTurnus = new Turnus();
-                    newTurnus.addElement(trip);
-                    improved.add(newTurnus);
-                    usedTripIds.add(trip.getId());
-                }
-            }
-        }
-    
-        // Pokus o zlúčenie turnusov
-        boolean merged = true;
-        while (merged) {
-            merged = false;
-            outer:
-            for (int i = 0; i < improved.size(); i++) {
-                for (int j = i + 1; j < improved.size(); j++) {
-                    Turnus t1 = improved.get(i);
-                    Turnus t2 = improved.get(j);
-    
-                    Turnus mergedTurnus = new Turnus();
-                    mergedTurnus.getElements().addAll(t1.getElements());
-                    mergedTurnus.getElements().addAll(t2.getElements());
-                    mergedTurnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
-    
-                    if (mergedTurnus.isFeasible()) {
-                        improved.set(i, mergedTurnus);
-                        improved.remove(j);
-                        merged = true;
+        List<Turnus> turnuses = new ArrayList<>(solution.getTurnuses());
+        turnuses.sort(Comparator.comparingDouble(Turnus::getDeadheadDistance).reversed());
+
+        boolean improved = true;
+        while (improved) {
+            improved = false;
+            outer: for (int i = 0; i < turnuses.size(); i++) {
+                for (int j = i + 1; j < turnuses.size(); j++) {
+                    Turnus t1 = turnuses.get(i);
+                    Turnus t2 = turnuses.get(j);
+
+                    Turnus combined = new Turnus();
+                    combined.getElements().addAll(t1.getElements());
+                    combined.getElements().addAll(t2.getElements());
+                    combined.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+
+                    if (combined.isFeasible()) {
+                        turnuses.set(i, combined);
+                        turnuses.remove(j);
+                        improved = true;
                         break outer;
                     }
                 }
             }
         }
-    
-        // Odstráň prázdne turnusy (ak by sa nejaké omylom vytvorili)
-        improved.removeIf(t -> t.getElements().isEmpty());
-    
-        solution.getTurnuses().clear();
-        solution.getTurnuses().addAll(improved);
 
+        solution.getTurnuses().clear();
+        solution.getTurnuses().addAll(turnuses);
         updateBestSolution(solution);
     }
-    
+
+    // private void localImprove(Solution solution) {
+    // List<Turnus> original = new ArrayList<>(solution.getTurnuses());
+    // List<Turnus> improved = new ArrayList<>();
+    // Set<Integer> usedTripIds = new HashSet<>();
+
+    // for (Turnus t : original) {
+    // List<Trip> tripsToMove = new ArrayList<>();
+    // for (TurnusElement e : t.getElements()) {
+    // if (e instanceof Trip trip) {
+    // tripsToMove.add(trip);
+    // }
+    // }
+
+    // for (Trip trip : tripsToMove) {
+    // boolean moved = false;
+
+    // for (Turnus target : improved) {
+    // if (!usedTripIds.contains(trip.getId())) {
+    // Turnus test = new Turnus(target);
+    // test.addElement(trip);
+    // test.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+
+    // if (test.isFeasible()) {
+    // target.addElement(trip);
+    // target.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+    // usedTripIds.add(trip.getId());
+    // moved = true;
+    // break;
+    // }
+    // }
+    // }
+
+    // if (!moved) {
+    // Turnus newTurnus = new Turnus();
+    // newTurnus.addElement(trip);
+    // improved.add(newTurnus);
+    // usedTripIds.add(trip.getId());
+    // }
+    // }
+    // }
+
+    // // Pokus o zlúčenie turnusov
+    // boolean merged = true;
+    // while (merged) {
+    // merged = false;
+    // outer: for (int i = 0; i < improved.size(); i++) {
+    // for (int j = i + 1; j < improved.size(); j++) {
+    // Turnus t1 = improved.get(i);
+    // Turnus t2 = improved.get(j);
+
+    // Turnus mergedTurnus = new Turnus();
+    // mergedTurnus.getElements().addAll(t1.getElements());
+    // mergedTurnus.getElements().addAll(t2.getElements());
+    // mergedTurnus.getElements().sort(Comparator.comparingInt(TurnusElement::getStartTime));
+
+    // if (mergedTurnus.isFeasible()) {
+    // improved.set(i, mergedTurnus);
+    // improved.remove(j);
+    // merged = true;
+    // break outer;
+    // }
+    // }
+    // }
+    // }
+
+    // // Odstráň prázdne turnusy (ak by sa nejaké omylom vytvorili)
+    // improved.removeIf(t -> t.getElements().isEmpty());
+
+    // solution.getTurnuses().clear();
+    // solution.getTurnuses().addAll(improved);
+
+    // updateBestSolution(solution);
+    // }
+
     public void updateBestSolution(Solution solution) {
         double fitness = solution.getFitness();
         int turnuses = solution.getNumberOfTurnuses();
-    
+
         if (bestSolution == null ||
-            turnuses < bestTurnuses ||
-            (turnuses == bestTurnuses && fitness > bestSolution.getFitness())) {
-            
+                turnuses < bestTurnuses ||
+                (turnuses == bestTurnuses && fitness > bestSolution.getFitness())) {
+
             bestTurnuses = turnuses;
             bestSolution = new Solution(solution); // clone
         }
-    }    
+    }
 
     public Solution getBestSolution() {
         return bestSolution;
-    }    
+    }
 }

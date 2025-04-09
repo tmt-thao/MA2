@@ -65,6 +65,33 @@ public class Turnus {
         return true;
     }
     
+    public int findFirstEnergyFailureIndex() {
+        double currEnergy = BATTERY_CAPACITY;
+        Trip prev = null;
+
+        for (int i = 0; i < elements.size(); i++) {
+            TurnusElement element = elements.get(i);
+
+            if (element instanceof Trip currTrip) {
+                if (prev != null) {
+                    currEnergy -= StaticData.getDeadheadEnergy(prev.getEndStop(), currTrip.getStartStop());
+                    int dhTime = StaticData.getTravelTime(prev.getEndStop(), currTrip.getStartStop());
+                    if (prev.getEndTime() + dhTime > currTrip.getStartTime()) {
+                        return i;
+                    }
+                }
+                currEnergy += currTrip.getEnergyDelta();
+                prev = currTrip;
+            } else {
+                currEnergy += element.getEnergyDelta();
+            }
+
+            if (currEnergy > BATTERY_CAPACITY) currEnergy = BATTERY_CAPACITY;
+            if (currEnergy < MIN_BATTERY_LEVEL) return i;
+        }
+
+        return -1; // všetko ok
+    }
 
     public double getTotalEnergyUsed() {
         return elements.stream()

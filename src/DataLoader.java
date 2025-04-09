@@ -3,6 +3,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 public class DataLoader {
 
@@ -26,13 +27,16 @@ public class DataLoader {
 
     public static void loadTrips(String filePath) throws IOException {
         StaticData.trips = new ArrayList<>();
-        
+
         BufferedReader br = new BufferedReader(new FileReader(filePath));
         String line;
         boolean first = true;
 
         while ((line = br.readLine()) != null) {
-            if (first) { first = false; continue; }
+            if (first) {
+                first = false;
+                continue;
+            }
 
             String[] parts = line.split(";");
             int id = Integer.parseInt(parts[0]);
@@ -64,7 +68,7 @@ public class DataLoader {
             }
             row++;
         }
-        
+
         br.close();
     }
 
@@ -81,7 +85,51 @@ public class DataLoader {
             }
             row++;
         }
-        
+
+        br.close();
+    }
+
+    public static void loadChargingEvents(String filePath) throws IOException {
+        StaticData.chargingEvents = new ArrayList<>();
+
+        BufferedReader br = new BufferedReader(new FileReader(filePath));
+        String line;
+        boolean first = true;
+
+        while ((line = br.readLine()) != null) {
+            if (first) { first = false; continue; }
+
+            String[] parts = line.split(";");
+            int id = Integer.parseInt(parts[1]);
+            int chargerIndex = Integer.parseInt(parts[0]);
+            int startTime = Integer.parseInt(parts[2]);
+            int endTime = Integer.parseInt(parts[3]);
+
+            Charger charger = StaticData.chargers.get(chargerIndex);
+            StaticData.chargingEvents.add(new ChargingEvent(id, charger, startTime, endTime));
+        }
+
+        br.close();
+    }
+
+    public static void loadChargers(String filePath) throws IOException {
+        StaticData.chargers = new ArrayList<>();
+
+        BufferedReader br = new BufferedReader(new FileReader(filePath));
+        String line;
+        boolean first = true;
+
+        while ((line = br.readLine()) != null) {
+            if (first) { first = false; continue; }
+
+            String[] parts = line.split(";");
+            int index = Integer.parseInt(parts[0]);
+            int location = StaticData.stopIdToIndex.get(Integer.parseInt(parts[1]));
+            double chargingSpeed = Double.parseDouble(parts[2]);
+
+            StaticData.chargers.add(new Charger(index, location, chargingSpeed));
+        }
+
         br.close();
     }
 }
