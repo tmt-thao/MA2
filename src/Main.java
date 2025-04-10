@@ -13,7 +13,7 @@ public class Main {
         DataLoader.loadMatrixKm("data/matrixKm.txt", StaticData.stopIdToIndex.size());
         DataLoader.loadMatrixTime("data/matrixTime.txt", StaticData.stopIdToIndex.size());
 
-        MemeticAlgorithm ma = new MemeticAlgorithm(100, 100, 0.5, trips);
+        MemeticAlgorithm ma = new MemeticAlgorithm(200, 200, 0.5, trips);
         ma.run();
     }
 }

@@ -29,6 +29,9 @@ public class MemeticAlgorithm {
     }
 
     public void run() {
+        Solution bestSol = null;
+        int bestNoOfTurnuses = Integer.MAX_VALUE;
+
         initializePopulation();
         System.out.println("Best generated turnus count: " + getBestSolution().getNumberOfTurnuses());
 
@@ -37,8 +40,6 @@ public class MemeticAlgorithm {
             tripCount += t.getElements().size();
         }
         System.out.println(tripCount + " " + bestSolution.getNumberOfTurnuses());
-
-        int best = getBestSolution().getNumberOfTurnuses();
 
         for (int gen = 0; gen < generations; gen++) {
             List<Solution> newPopulation = new ArrayList<>();
@@ -65,17 +66,25 @@ public class MemeticAlgorithm {
             // mutationRate = mutationRate * (1.0 - (double) gen / generations);
             population = newPopulation;
 
-            System.out.println("Generation " + gen + ": Turnuses = " + getBestSolution().getNumberOfTurnuses() + "; No. of trips: " + getBestSolution().getUsedTripIds().size());
+            for (Solution s : population) {
+                if (s.getNumberOfTurnuses() < bestNoOfTurnuses) {
+                    bestNoOfTurnuses = s.getNumberOfTurnuses();
+                    bestSol = s;
+                }
+            }
+
+            System.out.println("Generation " + gen + ": Turnuses = " + bestNoOfTurnuses + "; No. of trips: " + bestSol.getUsedTripIds().size());
+            // System.out.println("Generation " + gen + ": Turnuses = " + getBestSolution().getNumberOfTurnuses() + "; No. of trips: " + getBestSolution().getUsedTripIds().size());
         }
 
-        System.out.println("Final best solution: " + bestSolution);
+        System.out.println("Final best solution: " + bestSol);
 
         
         int tc = 0;
-        for (Turnus t : bestSolution.getTurnuses()) {
+        for (Turnus t : bestSol.getTurnuses()) {
             tc += t.getElements().size();
         }
-        System.out.println(tc + " " + bestSolution.getNumberOfTurnuses());
+        System.out.println(tc + " " + bestSol.getNumberOfTurnuses());
     }
 
     private void initializePopulation() {
@@ -121,7 +130,6 @@ public class MemeticAlgorithm {
         if (fixable && solution.isFeasible()) {
             updateBestSolution(solution);
         }
-
     }
 
     private Solution generateRandomSolution() {
@@ -209,6 +217,7 @@ public class MemeticAlgorithm {
 
     private Solution selectParent() {
         List<Solution> tournament = new ArrayList<>();
+
         for (int i = 0; i < 3; i++) {
             Solution s = population.get(random.nextInt(population.size()));
             tournament.add(s);
@@ -291,17 +300,15 @@ public class MemeticAlgorithm {
                 .max(Comparator.comparingDouble(Turnus::getDeadheadDistance))
                 .orElse(null);
 
-        if (worst == null || worst.getElements().isEmpty())
-            return;
+        if (worst == null || worst.getElements().isEmpty()) return;
 
         List<Trip> worstTrips = new ArrayList<>();
+
         for (TurnusElement e : worst.getElements()) {
-            if (e instanceof Trip trip)
-                worstTrips.add(trip);
+            if (e instanceof Trip trip) worstTrips.add(trip);
         }
 
-        if (worstTrips.isEmpty())
-            return;
+        if (worstTrips.isEmpty()) return;
 
         // Vyber náhodný trip z najhoršieho turnusu
         Trip selected = worstTrips.get(random.nextInt(worstTrips.size()));
@@ -395,8 +402,6 @@ public class MemeticAlgorithm {
                 Turnus newTurnus = new Turnus();
                 newTurnus.addElement(trip);
                 solution.addTurnus(newTurnus);
-
-                System.out.print("New turnus! Yay!");
             }
         }
     }
@@ -404,6 +409,8 @@ public class MemeticAlgorithm {
     public void updateBestSolution(Solution solution) {
         double fitness = solution.getFitness();
         int turnuses = solution.getNumberOfTurnuses();
+
+        ensureAllTripsPresent(solution, trips);
 
         if (bestSolution == null ||
                 turnuses < bestTurnuses ||
