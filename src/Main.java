@@ -3,7 +3,7 @@ import java.util.List;
 
 public class Main {
     public static void main(String[] args) throws IOException {
-        String version = "A_4";
+        String version = "T4_3";
         DataLoader.loadStopIdToIndex("data/ZastavkyAll.csv");
         DataLoader.loadChargers("data/chargers_" + version + ".csv");
         DataLoader.loadChargingEvents("data/ChEvents_" + version + ".csv");
@@ -13,7 +13,7 @@ public class Main {
         DataLoader.loadMatrixKm("data/matrixKm.txt", StaticData.stopIdToIndex.size());
         DataLoader.loadMatrixTime("data/matrixTime.txt", StaticData.stopIdToIndex.size());
 
-        MemeticAlgorithm ma = new MemeticAlgorithm(50, 100, 0.5, trips);
+        MemeticAlgorithm ma = new MemeticAlgorithm(100, 100, 0.5, trips);
         ma.run();
     }
 }

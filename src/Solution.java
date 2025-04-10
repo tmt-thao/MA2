@@ -49,11 +49,23 @@ public class Solution {
     }
 
     public double getFitness() {
+        double weightTurnuses = 1000.0;
+        double weightDeadhead = 100.0;
+        double weightCharging = 2.0;
+    
         double deadheads = turnuses.stream()
                 .mapToDouble(Turnus::getDeadheadDistance)
                 .sum();
-
-        return getNumberOfTurnuses() * 1000 + getTotalEnergyUsed() + deadheads * 100;
+        double totalCharged = turnuses.stream()
+            .flatMap(t -> t.getElements().stream())
+            .filter(e -> e instanceof ChargingEvent)
+            .mapToDouble(TurnusElement::getEnergyDelta)
+            .map(Math::abs)
+            .sum();
+    
+        return getNumberOfTurnuses() * weightTurnuses
+             + deadheads * weightDeadhead
+             + totalCharged * weightCharging;
     }
 
     public Set<Integer> getUsedTripIds() {
